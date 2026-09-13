@@ -88,8 +88,8 @@ def get_connection():
 def consultar_cliente_por_cpf(cpf_limpo: str) -> dict | None:
     """Consulta a existência e o status do cliente pelo CPF no banco de dados.
 
-    Suporta compatibilidade tanto com o schema do fiap-officine-database (coluna 'cpf' e 'status')
-    quanto com o schema do Pos-Tech-Fiap (coluna 'cpf_cnpj' e 'ativo').
+    Compatível tanto com a tabela 'clientes' do fiap-officine-database (cpf, status)
+    quanto com o schema do fiap-officine-api (coluna 'cpf_cnpj' e 'ativo').
     """
     conn = get_connection()
 
