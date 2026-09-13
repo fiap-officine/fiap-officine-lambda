@@ -46,7 +46,7 @@ data "aws_iam_policy_document" "lambda_assume_role" {
 }
 
 resource "aws_iam_role" "lambda_exec" {
-  name               = "${local.name_prefix}-lambda-role"
+  name_prefix        = "${local.name_prefix}-role-"
   assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
 }
 
