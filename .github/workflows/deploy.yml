@@ -1,0 +1,112 @@
+name: Deploy - Lambda Auth
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - "src/**"
+      - "terraform/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/deploy.yml"
+
+jobs:
+  test-and-package:
+    name: Test and Package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies & Run Tests
+        run: |
+          uv sync
+          uv run pytest
+
+  deploy-homolog:
+    name: Deploy to AWS Lambda (Homolog)
+    needs: test-and-package
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'sa-east-1' }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.5"
+
+      - name: Build Packaging with uv
+        run: |
+          mkdir -p terraform/build/package
+          uv pip install --target terraform/build/package --python-platform x86_64-manylinux2014 --python-version 3.12 "psycopg[binary]>=3.2.5" "python-jose[cryptography]>=3.3.0"
+          cp -r src/* terraform/build/package/
+
+      - name: Deploy with Terraform (Homolog)
+        working-directory: ./terraform
+        run: |
+          terraform init
+          terraform apply -auto-approve -var="environment=homolog"
+
+  deploy-production:
+    name: Deploy to AWS Lambda (Production)
+    needs: test-and-package
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'sa-east-1' }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.5"
+
+      - name: Build Packaging with uv
+        run: |
+          mkdir -p terraform/build/package
+          uv pip install --target terraform/build/package --python-platform x86_64-manylinux2014 --python-version 3.12 "psycopg[binary]>=3.2.5" "python-jose[cryptography]>=3.3.0"
+          cp -r src/* terraform/build/package/
+
+      - name: Deploy with Terraform (Production)
+        working-directory: ./terraform
+        run: |
+          terraform init
+          terraform apply -auto-approve -var="environment=prod"

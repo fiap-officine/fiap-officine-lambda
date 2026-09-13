@@ -1,0 +1,20 @@
+aws_region  = "sa-east-1"
+environment = "homolog"
+project     = "fiap-officine"
+
+# Banco de dados PostgreSQL RDS (Provisionado pelo repo fiap-officine-database)
+db_host     = "fiap-officine-homolog-rds.cxxxxxx.sa-east-1.rds.amazonaws.com"
+db_port     = 5432
+db_name     = "officine"
+db_user     = "postgres"
+db_password = "SuaSenhaSeguraAqui123"
+
+# Segredo JWT compartilhado com o backend
+jwt_secret_key     = "fiap-officine-super-secret-jwt-key-change-in-prod"
+jwt_algorithm      = "HS256"
+jwt_expire_minutes = 60
+
+# VPC e Subnets (Opcional se a Lambda rodar dentro da VPC para acessar RDS privado)
+# vpc_id             = "vpc-0123456789abcdef0"
+# subnet_ids         = ["subnet-0123456789abcdef1", "subnet-0123456789abcdef2"]
+# security_group_ids = ["sg-0123456789abcdef3"]
