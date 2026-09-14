@@ -91,6 +91,14 @@ A documentação interativa e os contratos de autenticação podem ser acessados
 * **OpenAPI Specification (JSON)**:  
   👉 [https://kai652jumh.execute-api.sa-east-1.amazonaws.com/openapi.json](https://kai652jumh.execute-api.sa-east-1.amazonaws.com/openapi.json)
 
+### 🔐 Comportamento de Acesso e Códigos de Retorno das Rotas
+
+| Tipo de Rota | Endpoints | Autorização | Comportamento e Resposta |
+| :--- | :--- | :--- | :--- |
+| **Autenticação** | `POST /auth/login` | Nenhuma (Valida CPF no RDS) | `200 OK` contendo o `access_token` JWT emitido por esta Lambda |
+| **Protegidas** | `/api/v1/ordens-servico/*`, etc. | **Bearer JWT Obrigatório** | • **Sem Token ou Inválido**: `401 Unauthorized` (bloqueado pelo **Lambda Authorizer** de borda)<br>• **Com Token Válido**: `200 OK` / `201 Created` encaminhado aos pods do Kubernetes |
+| **Públicas** | `/health`, `/docs`, `/openapi.json` | Nenhuma (`NONE`) | `200 OK` (retorna `503 Service Unavailable` apenas durante eventuais reinicializações/cold start do nó EC2 Free Tier) |
+
 ### Exemplo de Requisição no Postman / Curl:
 ```bash
 curl -X POST https://kai652jumh.execute-api.sa-east-1.amazonaws.com/auth/login \
