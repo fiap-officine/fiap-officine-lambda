@@ -5,6 +5,31 @@ Repositório responsável pela **Function Serverless (AWS Lambda)** e pelo **Lam
 
 ---
 
+## 🔄 Mudança da Fase 4 (microsserviços)
+
+Para cumprir a regra **"nenhum serviço acessa o banco de outro"**, a Lambda
+**não lê mais a tabela `clientes` no RDS**. O status do cliente é consultado no
+dono dos dados, o **OS Service**:
+
+```
+GET {OS_SERVICE_URL}/internal/clientes/status/{cpf}
+x-internal-token: {INTERNAL_API_TOKEN}
+```
+
+| Antes (Fase 3) | Agora (Fase 4) |
+|---|---|
+| `src/database.py` (psycopg → RDS) | [`src/clientes_client.py`](src/clientes_client.py) (HTTP → OS Service) |
+| Variáveis `DB_HOST`, `DB_USER`, `DB_PASSWORD`... | `OS_SERVICE_URL`, `INTERNAL_API_TOKEN` |
+| Lambda dentro da VPC para alcançar o RDS | Lambda fora da VPC (sem NAT), chamando a rota interna via API Gateway |
+| Sem gate de cobertura | `--cov-fail-under=80` + SonarCloud no PR (cobertura atual 94%) |
+
+O JWT emitido continua com `sub`, `role=cliente`, `cliente_id` e `nome` — o
+Billing Service usa `cliente_id` para garantir que o cliente só aprova o
+próprio orçamento. Os itens abaixo que citam acesso direto ao RDS descrevem a
+Fase 3.
+
+---
+
 ## 🎯 Propósito do Repositório
 
 Esta função serverless provê o serviço desacoplado e escalável de identificação e autorização de clientes:

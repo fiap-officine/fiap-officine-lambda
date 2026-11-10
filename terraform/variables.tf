@@ -23,7 +23,7 @@ variable "vpc_id" {
 }
 
 variable "subnet_ids" {
-  description = "Subnets privadas para a Lambda acessar o RDS"
+  description = "Subnets (opcional). Sem NAT, a Lambda em VPC não alcança o OS Service"
   type        = list(string)
   default     = []
 }
@@ -34,35 +34,17 @@ variable "security_group_ids" {
   default     = []
 }
 
-variable "db_host" {
-  description = "Host do PostgreSQL RDS"
+variable "os_service_url" {
+  description = "URL base do OS Service (ex.: https://<api-gateway>), dono da base de clientes"
   type        = string
-  default     = "localhost"
+  default     = ""
 }
 
-variable "db_port" {
-  description = "Porta do PostgreSQL RDS"
-  type        = number
-  default     = 5432
-}
-
-variable "db_name" {
-  description = "Nome do banco de dados"
-  type        = string
-  default     = "officine"
-}
-
-variable "db_user" {
-  description = "Usuário do banco de dados"
-  type        = string
-  default     = "postgres"
-}
-
-variable "db_password" {
-  description = "Senha do banco de dados"
+variable "internal_api_token" {
+  description = "Token service-to-service aceito em /internal/* do OS Service"
   type        = string
   sensitive   = true
-  default     = "postgres"
+  default     = ""
 }
 
 variable "jwt_secret_key" {

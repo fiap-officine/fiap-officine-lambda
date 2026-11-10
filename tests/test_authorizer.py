@@ -34,3 +34,21 @@ class TestAuthorizer:
         assert res["context"]["role"] == "cliente"
         assert res["context"]["cliente_id"] == "cli-123"
         assert res["context"]["nome"] == "Carlos Silva"
+
+
+class TestAuthorizerBordas:
+    def test_token_sem_sub_nao_autoriza(self):
+        from jose import jwt
+
+        from src.token_service import JWT_ALGORITHM, JWT_SECRET_KEY
+
+        token = jwt.encode({"role": "cliente"}, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+        evento = {"headers": {"authorization": f"Bearer {token}"}}
+        assert authorizer_handler(evento) == {"isAuthorized": False}
+
+    def test_erro_inesperado_nao_autoriza(self):
+        from unittest.mock import patch
+
+        evento = {"headers": {"Authorization": "Bearer abc"}}
+        with patch("src.authorizer.verificar_token_jwt", side_effect=RuntimeError("x")):
+            assert authorizer_handler(evento) == {"isAuthorized": False}

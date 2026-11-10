@@ -33,7 +33,7 @@ jobs:
       - name: Install Dependencies & Run Tests
         run: |
           uv sync
-          uv run pytest
+          uv run pytest --cov-fail-under=80
 
   deploy-homolog:
     name: Deploy to AWS Lambda (Homolog)
@@ -64,14 +64,17 @@ jobs:
       - name: Build Packaging with uv
         run: |
           mkdir -p terraform/build/package
-          uv pip install --target terraform/build/package --python-platform x86_64-manylinux2014 --python-version 3.12 "psycopg[binary]>=3.2.5" "python-jose[cryptography]>=3.3.0"
+          uv pip install --target terraform/build/package --python-platform x86_64-manylinux2014 --python-version 3.12 "python-jose[cryptography]>=3.3.0"
           cp -r src/* terraform/build/package/
 
       - name: Deploy with Terraform (Homolog)
         working-directory: ./terraform
         run: |
           terraform init
-          terraform apply -auto-approve -var="environment=homolog"
+          terraform apply -auto-approve -var="environment=homolog" \
+            -var="os_service_url=${{ vars.OS_SERVICE_URL }}" \
+            -var="internal_api_token=${{ secrets.INTERNAL_API_TOKEN }}" \
+            -var="jwt_secret_key=${{ secrets.JWT_SECRET_KEY }}"
 
   deploy-production:
     name: Deploy to AWS Lambda (Production)
@@ -102,11 +105,14 @@ jobs:
       - name: Build Packaging with uv
         run: |
           mkdir -p terraform/build/package
-          uv pip install --target terraform/build/package --python-platform x86_64-manylinux2014 --python-version 3.12 "psycopg[binary]>=3.2.5" "python-jose[cryptography]>=3.3.0"
+          uv pip install --target terraform/build/package --python-platform x86_64-manylinux2014 --python-version 3.12 "python-jose[cryptography]>=3.3.0"
           cp -r src/* terraform/build/package/
 
       - name: Deploy with Terraform (Production)
         working-directory: ./terraform
         run: |
           terraform init
-          terraform apply -auto-approve -var="environment=prod"
+          terraform apply -auto-approve -var="environment=prod" \
+            -var="os_service_url=${{ vars.OS_SERVICE_URL }}" \
+            -var="internal_api_token=${{ secrets.INTERNAL_API_TOKEN }}" \
+            -var="jwt_secret_key=${{ secrets.JWT_SECRET_KEY }}"
