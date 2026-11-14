@@ -1,5 +1,8 @@
 # ⚡ fiap-officine-lambda — Function Serverless de Autenticação (AWS Lambda)
 
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=fiap-officine_fiap-officine-lambda&metric=alert_status)](https://sonarcloud.io/summary/overall?id=fiap-officine_fiap-officine-lambda)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=fiap-officine_fiap-officine-lambda&metric=coverage)](https://sonarcloud.io/summary/overall?id=fiap-officine_fiap-officine-lambda)
+
 **Tech Challenge FIAP (15SOAT)**  
 Repositório responsável pela **Function Serverless (AWS Lambda)** e pelo **Lambda Authorizer** do ecossistema **fiap-officine**. Provê autenticação centralizada, validação matemática de CPF, consulta de integridade no banco gerenciado e assinatura criptográfica de tokens JWT.
 
