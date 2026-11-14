@@ -1,9 +1,9 @@
 name: Deploy - Lambda Auth
 
 on:
+  # Deploy só a partir de develop (a main recebe PRs de develop)
   push:
     branches:
-      - main
       - develop
     paths:
       - "src/**"
@@ -18,95 +18,84 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
         with:
           version: "latest"
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
 
       - name: Install Dependencies & Run Tests
         run: |
-          uv sync
-          uv run pytest
+          uv sync --frozen --no-build
+          uv run --frozen --no-build pytest --cov-fail-under=80
 
   deploy-homolog:
     name: Deploy to AWS Lambda (Homolog)
     needs: test-and-package
+    # Ambiente único: homolog (projeto acadêmico), publicado a partir de develop
     if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
         with:
           version: "latest"
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION || 'sa-east-1' }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-2
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
         with:
           terraform_version: "1.9.5"
 
       - name: Build Packaging with uv
         run: |
           mkdir -p terraform/build/package
-          uv pip install --target terraform/build/package --python-platform x86_64-manylinux2014 --python-version 3.12 "psycopg[binary]>=3.2.5" "python-jose[cryptography]>=3.3.0"
+          # Versões travadas pelo uv.lock (com hashes) e somente wheels
+          uv export --frozen --no-dev --no-emit-project -o "$RUNNER_TEMP/requirements.txt"
+          uv pip install --target terraform/build/package --python-platform x86_64-manylinux2014 \
+            --python-version 3.12 --no-build -r "$RUNNER_TEMP/requirements.txt"
           cp -r src/* terraform/build/package/
 
       - name: Deploy with Terraform (Homolog)
         working-directory: ./terraform
+        env:
+          TF_VAR_internal_api_token: ${{ secrets.INTERNAL_API_TOKEN }}
+          TF_VAR_jwt_secret_key: ${{ secrets.JWT_SECRET_KEY }}
+          OS_SERVICE_URL_VAR: ${{ vars.OS_SERVICE_URL }}
         run: |
-          terraform init
-          terraform apply -auto-approve -var="environment=homolog"
-
-  deploy-production:
-    name: Deploy to AWS Lambda (Production)
-    needs: test-and-package
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          version: "latest"
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION || 'sa-east-1' }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.9.5"
-
-      - name: Build Packaging with uv
-        run: |
-          mkdir -p terraform/build/package
-          uv pip install --target terraform/build/package --python-platform x86_64-manylinux2014 --python-version 3.12 "psycopg[binary]>=3.2.5" "python-jose[cryptography]>=3.3.0"
-          cp -r src/* terraform/build/package/
-
-      - name: Deploy with Terraform (Production)
-        working-directory: ./terraform
-        run: |
-          terraform init
-          terraform apply -auto-approve -var="environment=prod"
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          BUCKET="fiap-officine-tfstate-${ACCOUNT_ID}"
+          if ! aws s3api head-bucket --bucket "$BUCKET" 2>/dev/null; then
+            aws s3api create-bucket --bucket "$BUCKET" --region us-east-2 \
+              --create-bucket-configuration LocationConstraint=us-east-2 \
+              || aws s3api head-bucket --bucket "$BUCKET"
+            aws s3api put-bucket-versioning --bucket "$BUCKET" \
+              --versioning-configuration Status=Enabled
+            aws s3api put-public-access-block --bucket "$BUCKET" \
+              --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+          fi
+          # URL pública do API Gateway publicada pelo fiap-officine-kubernets (variável como fallback)
+          OS_SERVICE_URL=$(aws ssm get-parameter --name /fiap-officine/homolog/api-gateway/url \
+            --query Parameter.Value --output text 2>/dev/null || true)
+          export TF_VAR_os_service_url="${OS_SERVICE_URL:-$OS_SERVICE_URL_VAR}"
+          terraform init -input=false \
+            -backend-config="bucket=$BUCKET" \
+            -backend-config="key=lambda/homolog/terraform.tfstate" \
+            -backend-config="region=us-east-2"
+          terraform apply -input=false -auto-approve -var="environment=homolog"

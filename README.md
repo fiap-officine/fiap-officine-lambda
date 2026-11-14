@@ -5,6 +5,31 @@ Repositório responsável pela **Function Serverless (AWS Lambda)** e pelo **Lam
 
 ---
 
+## 🔄 Mudança da Fase 4 (microsserviços)
+
+Para cumprir a regra **"nenhum serviço acessa o banco de outro"**, a Lambda
+**não lê mais a tabela `clientes` no RDS**. O status do cliente é consultado no
+dono dos dados, o **OS Service**:
+
+```
+GET {OS_SERVICE_URL}/internal/clientes/status/{cpf}
+x-internal-token: {INTERNAL_API_TOKEN}
+```
+
+| Antes (Fase 3) | Agora (Fase 4) |
+|---|---|
+| `src/database.py` (psycopg → RDS) | [`src/clientes_client.py`](src/clientes_client.py) (HTTP → OS Service) |
+| Variáveis `DB_HOST`, `DB_USER`, `DB_PASSWORD`... | `OS_SERVICE_URL`, `INTERNAL_API_TOKEN` |
+| Lambda dentro da VPC para alcançar o RDS | Lambda fora da VPC (sem NAT), chamando a rota interna via API Gateway |
+| Sem gate de cobertura | `--cov-fail-under=80` + SonarCloud no PR (cobertura atual 94%) |
+
+O JWT emitido continua com `sub`, `role=cliente`, `cliente_id` e `nome` — o
+Billing Service usa `cliente_id` para garantir que o cliente só aprova o
+próprio orçamento. Os itens abaixo que citam acesso direto ao RDS descrevem a
+Fase 3.
+
+---
+
 ## 🎯 Propósito do Repositório
 
 Esta função serverless provê o serviço desacoplado e escalável de identificação e autorização de clientes:
@@ -85,11 +110,11 @@ graph TD
 A documentação interativa e os contratos de autenticação podem ser acessados via API Gateway:
 
 * **Endpoint Ativo de Login**:  
-  👉 `POST https://kai652jumh.execute-api.sa-east-1.amazonaws.com/auth/login`
+  👉 `POST https://kai652jumh.execute-api.us-east-2.amazonaws.com/auth/login`
 * **Swagger UI Geral das APIs**:  
-  👉 [https://kai652jumh.execute-api.sa-east-1.amazonaws.com/docs](https://kai652jumh.execute-api.sa-east-1.amazonaws.com/docs)
+  👉 [https://kai652jumh.execute-api.us-east-2.amazonaws.com/docs](https://kai652jumh.execute-api.us-east-2.amazonaws.com/docs)
 * **OpenAPI Specification (JSON)**:  
-  👉 [https://kai652jumh.execute-api.sa-east-1.amazonaws.com/openapi.json](https://kai652jumh.execute-api.sa-east-1.amazonaws.com/openapi.json)
+  👉 [https://kai652jumh.execute-api.us-east-2.amazonaws.com/openapi.json](https://kai652jumh.execute-api.us-east-2.amazonaws.com/openapi.json)
 
 ### 🔐 Comportamento de Acesso e Códigos de Retorno das Rotas
 
@@ -101,7 +126,7 @@ A documentação interativa e os contratos de autenticação podem ser acessados
 
 ### Exemplo de Requisição no Postman / Curl:
 ```bash
-curl -X POST https://kai652jumh.execute-api.sa-east-1.amazonaws.com/auth/login \
+curl -X POST https://kai652jumh.execute-api.us-east-2.amazonaws.com/auth/login \
   -H "Content-Type: application/json" \
   -d '{"cpf": "52998224725"}'
 ```
@@ -149,7 +174,7 @@ uv run ruff check .
 
 ### Opção A: Deploy Automático via CI/CD (GitHub Actions)
 O repositório possui pipelines configuradas em `.github/workflows/`:
-* **Push/Merge em `develop`**: Executa testes e realiza deploy contínuo em **Homologação** (AWS `sa-east-1`).
+* **Push/Merge em `develop`**: Executa testes e realiza deploy contínuo em **Homologação** (AWS `us-east-2`).
 * **Push/Merge em `main`**: Executa testes e realiza deploy contínuo em **Produção**.
 
 ### Opção B: Deploy Manual com Terraform
@@ -172,7 +197,7 @@ terraform apply -var-file="terraform.tfvars" -auto-approve
 
 | Variável | Descrição | Exemplo |
 | :--- | :--- | :--- |
-| `DB_HOST` | Endpoint do AWS RDS PostgreSQL | `fiap-officine-homolog-rds.chmmasky8j6y.sa-east-1.rds.amazonaws.com` |
+| `DB_HOST` | Endpoint do AWS RDS PostgreSQL | `fiap-officine-homolog-rds.chmmasky8j6y.us-east-2.rds.amazonaws.com` |
 | `DB_PORT` | Porta de conexão do banco | `5432` |
 | `DB_NAME` | Nome da base de dados | `officine_db` |
 | `DB_USER` | Usuário administrador | `dbadmin` |
