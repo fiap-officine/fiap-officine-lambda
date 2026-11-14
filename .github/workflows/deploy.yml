@@ -56,7 +56,7 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: sa-east-1
+          aws-region: us-east-2
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -79,8 +79,8 @@ jobs:
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
           BUCKET="fiap-officine-tfstate-${ACCOUNT_ID}"
           if ! aws s3api head-bucket --bucket "$BUCKET" 2>/dev/null; then
-            aws s3api create-bucket --bucket "$BUCKET" --region sa-east-1 \
-              --create-bucket-configuration LocationConstraint=sa-east-1 \
+            aws s3api create-bucket --bucket "$BUCKET" --region us-east-2 \
+              --create-bucket-configuration LocationConstraint=us-east-2 \
               || aws s3api head-bucket --bucket "$BUCKET"
             aws s3api put-bucket-versioning --bucket "$BUCKET" \
               --versioning-configuration Status=Enabled
@@ -94,5 +94,5 @@ jobs:
           terraform init -input=false \
             -backend-config="bucket=$BUCKET" \
             -backend-config="key=lambda/homolog/terraform.tfstate" \
-            -backend-config="region=sa-east-1"
+            -backend-config="region=us-east-2"
           terraform apply -input=false -auto-approve -var="environment=homolog"

@@ -110,11 +110,11 @@ graph TD
 A documentação interativa e os contratos de autenticação podem ser acessados via API Gateway:
 
 * **Endpoint Ativo de Login**:  
-  👉 `POST https://kai652jumh.execute-api.sa-east-1.amazonaws.com/auth/login`
+  👉 `POST https://kai652jumh.execute-api.us-east-2.amazonaws.com/auth/login`
 * **Swagger UI Geral das APIs**:  
-  👉 [https://kai652jumh.execute-api.sa-east-1.amazonaws.com/docs](https://kai652jumh.execute-api.sa-east-1.amazonaws.com/docs)
+  👉 [https://kai652jumh.execute-api.us-east-2.amazonaws.com/docs](https://kai652jumh.execute-api.us-east-2.amazonaws.com/docs)
 * **OpenAPI Specification (JSON)**:  
-  👉 [https://kai652jumh.execute-api.sa-east-1.amazonaws.com/openapi.json](https://kai652jumh.execute-api.sa-east-1.amazonaws.com/openapi.json)
+  👉 [https://kai652jumh.execute-api.us-east-2.amazonaws.com/openapi.json](https://kai652jumh.execute-api.us-east-2.amazonaws.com/openapi.json)
 
 ### 🔐 Comportamento de Acesso e Códigos de Retorno das Rotas
 
@@ -126,7 +126,7 @@ A documentação interativa e os contratos de autenticação podem ser acessados
 
 ### Exemplo de Requisição no Postman / Curl:
 ```bash
-curl -X POST https://kai652jumh.execute-api.sa-east-1.amazonaws.com/auth/login \
+curl -X POST https://kai652jumh.execute-api.us-east-2.amazonaws.com/auth/login \
   -H "Content-Type: application/json" \
   -d '{"cpf": "52998224725"}'
 ```
@@ -174,7 +174,7 @@ uv run ruff check .
 
 ### Opção A: Deploy Automático via CI/CD (GitHub Actions)
 O repositório possui pipelines configuradas em `.github/workflows/`:
-* **Push/Merge em `develop`**: Executa testes e realiza deploy contínuo em **Homologação** (AWS `sa-east-1`).
+* **Push/Merge em `develop`**: Executa testes e realiza deploy contínuo em **Homologação** (AWS `us-east-2`).
 * **Push/Merge em `main`**: Executa testes e realiza deploy contínuo em **Produção**.
 
 ### Opção B: Deploy Manual com Terraform
@@ -197,7 +197,7 @@ terraform apply -var-file="terraform.tfvars" -auto-approve
 
 | Variável | Descrição | Exemplo |
 | :--- | :--- | :--- |
-| `DB_HOST` | Endpoint do AWS RDS PostgreSQL | `fiap-officine-homolog-rds.chmmasky8j6y.sa-east-1.rds.amazonaws.com` |
+| `DB_HOST` | Endpoint do AWS RDS PostgreSQL | `fiap-officine-homolog-rds.chmmasky8j6y.us-east-2.rds.amazonaws.com` |
 | `DB_PORT` | Porta de conexão do banco | `5432` |
 | `DB_NAME` | Nome da base de dados | `officine_db` |
 | `DB_USER` | Usuário administrador | `dbadmin` |

@@ -1,9 +1,9 @@
-aws_region  = "sa-east-1"
+aws_region  = "us-east-2"
 environment = "homolog"
 project     = "fiap-officine"
 
 # OS Service (dono da base de clientes) — a Lambda não acessa mais o RDS
-os_service_url     = "https://<api-gateway-id>.execute-api.sa-east-1.amazonaws.com"
+os_service_url     = "https://<api-gateway-id>.execute-api.us-east-2.amazonaws.com"
 internal_api_token = "<mesmo INTERNAL_API_TOKEN do os-service>"
 
 # Segredo JWT compartilhado com o backend
