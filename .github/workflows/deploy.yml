@@ -70,7 +70,8 @@ jobs:
           uv export --frozen --no-dev --no-emit-project -o "$RUNNER_TEMP/requirements.txt"
           uv pip install --target terraform/build/package --python-platform x86_64-manylinux2014 \
             --python-version 3.12 --no-build -r "$RUNNER_TEMP/requirements.txt"
-          cp -r src/* terraform/build/package/
+          # O código importa "src.xxx": a pasta src vai inteira para o pacote
+          cp -r src terraform/build/package/
 
       - name: Deploy with Terraform (Homolog)
         working-directory: ./terraform

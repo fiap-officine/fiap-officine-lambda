@@ -87,7 +87,7 @@ resource "aws_lambda_function" "auth" {
   function_name    = "${local.name_prefix}-auth-lambda"
   description      = "Valida CPF, consulta status do cliente no OS Service e devolve token JWT"
   role             = aws_iam_role.lambda_exec.arn
-  handler          = "handler.lambda_handler"
+  handler          = "src.handler.lambda_handler"
   runtime          = "python3.12"
   filename         = data.archive_file.lambda_zip.output_path
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
@@ -125,7 +125,7 @@ resource "aws_lambda_function" "authorizer" {
   function_name    = "${local.name_prefix}-lambda-authorizer"
   description      = "Valida token JWT de clientes para autorização em APIs protegidas"
   role             = aws_iam_role.lambda_exec.arn
-  handler          = "authorizer.authorizer_handler"
+  handler          = "src.authorizer.authorizer_handler"
   runtime          = "python3.12"
   filename         = data.archive_file.lambda_zip.output_path
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
