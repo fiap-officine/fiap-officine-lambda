@@ -11,6 +11,13 @@ terraform {
       version = "~> 2.4"
     }
   }
+
+  # State remoto no S3 (configuração parcial). O workflow deploy.yml cria o
+  # bucket fiap-officine-tfstate-<account_id> se não existir e passa
+  # bucket/key/region no init. Uso local sem AWS: terraform init -backend=false
+  backend "s3" {
+    encrypt = true
+  }
 }
 
 provider "aws" {

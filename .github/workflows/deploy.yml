@@ -55,7 +55,8 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION || 'sa-east-1' }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: sa-east-1
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -70,9 +71,28 @@ jobs:
 
       - name: Deploy with Terraform (Homolog)
         working-directory: ./terraform
+        env:
+          TF_VAR_internal_api_token: ${{ secrets.INTERNAL_API_TOKEN }}
+          TF_VAR_jwt_secret_key: ${{ secrets.JWT_SECRET_KEY }}
+          OS_SERVICE_URL_VAR: ${{ vars.OS_SERVICE_URL }}
         run: |
-          terraform init
-          terraform apply -auto-approve -var="environment=homolog" \
-            -var="os_service_url=${{ vars.OS_SERVICE_URL }}" \
-            -var="internal_api_token=${{ secrets.INTERNAL_API_TOKEN }}" \
-            -var="jwt_secret_key=${{ secrets.JWT_SECRET_KEY }}"
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          BUCKET="fiap-officine-tfstate-${ACCOUNT_ID}"
+          if ! aws s3api head-bucket --bucket "$BUCKET" 2>/dev/null; then
+            aws s3api create-bucket --bucket "$BUCKET" --region sa-east-1 \
+              --create-bucket-configuration LocationConstraint=sa-east-1 \
+              || aws s3api head-bucket --bucket "$BUCKET"
+            aws s3api put-bucket-versioning --bucket "$BUCKET" \
+              --versioning-configuration Status=Enabled
+            aws s3api put-public-access-block --bucket "$BUCKET" \
+              --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+          fi
+          # URL pública do API Gateway publicada pelo fiap-officine-kubernets (variável como fallback)
+          OS_SERVICE_URL=$(aws ssm get-parameter --name /fiap-officine/homolog/api-gateway/url \
+            --query Parameter.Value --output text 2>/dev/null || true)
+          export TF_VAR_os_service_url="${OS_SERVICE_URL:-$OS_SERVICE_URL_VAR}"
+          terraform init -input=false \
+            -backend-config="bucket=$BUCKET" \
+            -backend-config="key=lambda/homolog/terraform.tfstate" \
+            -backend-config="region=sa-east-1"
+          terraform apply -input=false -auto-approve -var="environment=homolog"
