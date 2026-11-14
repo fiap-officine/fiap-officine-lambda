@@ -115,7 +115,7 @@ resource "aws_lambda_function" "auth" {
 
 resource "aws_cloudwatch_log_group" "auth" {
   name              = "/aws/lambda/${aws_lambda_function.auth.function_name}"
-  retention_in_days = 7
+  retention_in_days = 30 # retenção para auditoria (Sonar S6413)
 }
 
 # ──────────────────────────────────────────────
@@ -142,5 +142,5 @@ resource "aws_lambda_function" "authorizer" {
 
 resource "aws_cloudwatch_log_group" "authorizer" {
   name              = "/aws/lambda/${aws_lambda_function.authorizer.function_name}"
-  retention_in_days = 7
+  retention_in_days = 30 # retenção para auditoria (Sonar S6413)
 }
