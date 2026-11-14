@@ -11,6 +11,13 @@ terraform {
       version = "~> 2.4"
     }
   }
+
+  # State remoto no S3 (configuração parcial). O workflow deploy.yml cria o
+  # bucket fiap-officine-tfstate-<account_id> se não existir e passa
+  # bucket/key/region no init. Uso local sem AWS: terraform init -backend=false
+  backend "s3" {
+    encrypt = true
+  }
 }
 
 provider "aws" {
@@ -56,7 +63,8 @@ resource "aws_iam_role_policy_attachment" "lambda_basic" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-# Permissões de rede VPC (se subnets forem informadas)
+# Permissões de rede VPC (opcional; na Fase 4 a Lambda não acessa mais o RDS,
+# então o padrão é rodar fora da VPC, com saída para a internet)
 resource "aws_iam_role_policy_attachment" "lambda_vpc" {
   count      = local.use_vpc ? 1 : 0
   role       = aws_iam_role.lambda_exec.name
@@ -77,7 +85,7 @@ data "archive_file" "lambda_zip" {
 # ──────────────────────────────────────────────
 resource "aws_lambda_function" "auth" {
   function_name    = "${local.name_prefix}-auth-lambda"
-  description      = "Valida CPF, consulta cliente no RDS PostgreSQL e devolve token JWT"
+  description      = "Valida CPF, consulta status do cliente no OS Service e devolve token JWT"
   role             = aws_iam_role.lambda_exec.arn
   handler          = "handler.lambda_handler"
   runtime          = "python3.12"
@@ -88,11 +96,8 @@ resource "aws_lambda_function" "auth" {
 
   environment {
     variables = {
-      DB_HOST                         = var.db_host
-      DB_PORT                         = tostring(var.db_port)
-      DB_NAME                         = var.db_name
-      DB_USER                         = var.db_user
-      DB_PASSWORD                     = var.db_password
+      OS_SERVICE_URL                  = var.os_service_url
+      INTERNAL_API_TOKEN              = var.internal_api_token
       JWT_SECRET_KEY                  = var.jwt_secret_key
       JWT_ALGORITHM                   = var.jwt_algorithm
       JWT_ACCESS_TOKEN_EXPIRE_MINUTES = tostring(var.jwt_expire_minutes)

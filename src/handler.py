@@ -2,7 +2,7 @@ import base64
 import json
 import logging
 
-from src.database import consultar_cliente_por_cpf
+from src.clientes_client import consultar_cliente_por_cpf
 from src.token_service import gerar_token_jwt
 from src.validators import formatar_cpf, validar_cpf
 
@@ -32,10 +32,9 @@ def _extrair_dados(event: dict) -> dict:
         return {}
 
     # Trata requisição OPTIONS para CORS pre-flight
-    http_method = (
-        event.get("requestContext", {}).get("http", {}).get("method")
-        or event.get("httpMethod")
-    )
+    http_method = event.get("requestContext", {}).get("http", {}).get(
+        "method"
+    ) or event.get("httpMethod")
     if http_method == "OPTIONS":
         return {"__is_options__": True}
 
@@ -66,7 +65,8 @@ def lambda_handler(event: dict, context=None) -> dict:
     Fluxo:
     1. Extrai o CPF do payload ou query param.
     2. Valida matematicamente o CPF (dígitos verificadores - módulo 11).
-    3. Consulta a existência e o status do cliente no PostgreSQL (RDS).
+    3. Consulta a existência e o status do cliente no OS Service
+       (GET /internal/clientes/status/{cpf}) — sem acesso ao banco de outro serviço.
     4. Gera e devolve um token JWT válido para consumo das APIs protegidas.
     """
     logger.info("Iniciando processamento de autenticação na Lambda")
@@ -76,16 +76,6 @@ def lambda_handler(event: dict, context=None) -> dict:
     # Resposta para CORS pre-flight
     if dados.get("__is_options__"):
         return _response(200, {"message": "OK"})
-
-    # Inicialização / migração automática de schema
-    if dados.get("action") == "migrate" or dados.get("migrate") is True:
-        try:
-            from src.database import inicializar_schema
-            resultado = inicializar_schema()
-            return _response(200, resultado)
-        except Exception as e:
-            logger.error(f"Erro ao inicializar schema: {e}")
-            return _response(500, {"error": "Internal Server Error", "detail": str(e)})
 
     cpf = dados.get("cpf") or dados.get("cpf_cnpj")
     if not cpf:
@@ -109,16 +99,16 @@ def lambda_handler(event: dict, context=None) -> dict:
 
     cpf_limpo = formatar_cpf(str(cpf))
 
-    # 2. Consultar existência e status na base de dados
+    # 2. Consultar existência e status no OS Service (dono da base de clientes)
     try:
         cliente = consultar_cliente_por_cpf(cpf_limpo)
     except Exception as e:
-        logger.error(f"Erro ao conectar ou consultar o banco de dados: {e}")
+        logger.error(f"Erro ao consultar o OS Service: {e}")
         return _response(
             500,
             {
                 "error": "Internal Server Error",
-                "detail": "Erro interno ao consultar a base de dados de clientes.",
+                "detail": "Erro interno ao consultar o serviço de clientes.",
             },
         )
 
