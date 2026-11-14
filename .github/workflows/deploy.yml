@@ -1,9 +1,9 @@
 name: Deploy - Lambda Auth
 
 on:
+  # Deploy só a partir de develop (a main recebe PRs de develop)
   push:
     branches:
-      - main
       - develop
     paths:
       - "src/**"
@@ -38,8 +38,8 @@ jobs:
   deploy-homolog:
     name: Deploy to AWS Lambda (Homolog)
     needs: test-and-package
-    # Ambiente único: homolog (projeto acadêmico) — develop e main publicam aqui
-    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
+    # Ambiente único: homolog (projeto acadêmico), publicado a partir de develop
+    if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
